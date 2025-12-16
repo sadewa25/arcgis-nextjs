@@ -10,7 +10,7 @@ import { useRef, useEffect } from "react";
 
 // Initialize ArcGIS config
 config.apiKey =
-  "";
+  process.env.NEXT_PUBLIC_API_KEY || "";
 
 export default function ArcGISMapCore() {
   const mapDiv = useRef<HTMLDivElement>(null);
