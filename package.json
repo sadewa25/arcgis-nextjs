@@ -11,6 +11,8 @@
   "dependencies": {
     "@arcgis/core": "^4.34.8",
     "@arcgis/map-components-react": "^4.34.9",
+    "@esri/arcgis-rest-geocoding": "^4.0.3",
+    "@esri/arcgis-rest-request": "^4.7.3",
     "next": "14.2.35",
     "react": "^18",
     "react-dom": "^18"
