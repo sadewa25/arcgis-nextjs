@@ -48,6 +48,8 @@ export default function ArcGISMapWrapper() {
   const [mapView, setMapView] = useState<any>(null);
   const [elevationData, setElevationData] = useState<ElevationDataPoint[]>([]);
   const [isLoadingElevation, setIsLoadingElevation] = useState(false);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([106.8451, -6.2088]);
+  const [mapZoom, setMapZoom] = useState(10);
   const mapRef = useRef<any>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -314,22 +316,46 @@ export default function ArcGISMapWrapper() {
         const candidate = response.candidates[0];
         const location = candidate.location;
 
-        // Navigate map to the location
-        if (mapView) {
-          mapView.goTo({
-            center: [location.x, location.y],
-            zoom: 15,
-          });
-        } else if (mapRef.current) {
-          // Try to access view from map element
-          const view = (mapRef.current as any).view;
-          if (view) {
-            view.goTo({
-              center: [location.x, location.y],
-              zoom: 15,
-            });
+        // Update map center state - this will trigger a re-render with new center
+        setMapCenter([location.x, location.y]);
+        setMapZoom(15);
+
+        // Also try to navigate using the view if available (for immediate update)
+        const navigateToLocation = async () => {
+          // Method 1: Use mapView if available
+          if (mapView) {
+            try {
+              await mapView.goTo({
+                center: [location.x, location.y],
+                zoom: 15,
+              });
+              return;
+            } catch (error) {
+              console.warn("Failed to navigate using mapView:", error);
+            }
           }
-        }
+
+          // Method 2: Try to access view from map element
+          if (mapRef.current) {
+            const view = (mapRef.current as any).view;
+            if (view) {
+              try {
+                await view.goTo({
+                  center: [location.x, location.y],
+                  zoom: 15,
+                });
+                return;
+              } catch (error) {
+                console.warn("Failed to navigate using mapRef view:", error);
+              }
+            }
+          }
+        };
+
+        // Try navigation, but don't wait for it since state update will handle it
+        navigateToLocation().catch(() => {
+          // Ignore errors, state update will handle the navigation
+        });
 
         setSearchText(candidate.address || "");
         setShowSuggestions(false);
@@ -444,6 +470,18 @@ export default function ArcGISMapWrapper() {
     }
   }, [isReady]);
 
+  // Update map view when center or zoom changes
+  useEffect(() => {
+    if (mapView && mapCenter) {
+      mapView.goTo({
+        center: mapCenter,
+        zoom: mapZoom,
+      }).catch((error: any) => {
+        console.warn("Error navigating map:", error);
+      });
+    }
+  }, [mapCenter, mapZoom, mapView]);
+
   if (!isReady) {
     return (
       <div className="w-full h-full bg-gray-800 flex items-center justify-center">
@@ -506,8 +544,8 @@ export default function ArcGISMapWrapper() {
       <ArcgisMap
           ref={mapRef}
           basemap="arcgis/navigation"
-          center={[106.8451, -6.2088] as any}
-          zoom={10}
+          center={mapCenter as any}
+          zoom={mapZoom}
         style={{ width: "100%", height: "100%" }}
       >
           <ArcgisZoom slot="top-left" />
