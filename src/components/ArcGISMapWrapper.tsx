@@ -3,8 +3,8 @@
 import config from "@arcgis/core/config";
 import {
   ArcgisMap,
-  ArcgisSketch,
   ArcgisSearch,
+  ArcgisZoom
 } from "@arcgis/map-components-react";
 import { defineCustomElements as defineMapElements } from "@arcgis/map-components/dist/loader";
 import { useEffect, useState } from "react";
@@ -52,13 +52,13 @@ export default function ArcGISMapWrapper() {
   return (
     <div className="w-full h-full">
       <ArcgisMap
-        basemap="topo-vector"
+        basemap="arcgis/navigation"
         center={[106.8451, -6.2088] as any}
         zoom={10}
         style={{ width: "100%", height: "100%" }}
       >
-        <ArcgisSearch slot="top-right" onArcgisSearchComplete={handleSearchComplete} />
-        {/* <ArcgisSketch slot="top-right" creation-mode="update" /> */}
+         <ArcgisZoom slot="top-left"/>
+         <ArcgisSearch slot="top-right"/>
       </ArcgisMap>
     </div>
   );
