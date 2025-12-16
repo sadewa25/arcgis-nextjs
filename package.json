@@ -15,7 +15,8 @@
     "@esri/arcgis-rest-request": "^4.7.3",
     "next": "14.2.35",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "recharts": "^3.6.0"
   },
   "devDependencies": {
     "@types/node": "^20",
