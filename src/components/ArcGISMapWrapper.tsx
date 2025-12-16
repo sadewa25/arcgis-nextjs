@@ -50,6 +50,7 @@ export default function ArcGISMapWrapper() {
   const [isLoadingElevation, setIsLoadingElevation] = useState(false);
   const [mapCenter, setMapCenter] = useState<[number, number]>([106.8451, -6.2088]);
   const [mapZoom, setMapZoom] = useState(10);
+  const [hasPolyline, setHasPolyline] = useState(false);
   const mapRef = useRef<any>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -88,7 +89,8 @@ export default function ArcGISMapWrapper() {
   const authentication = ApiKeyManager.fromKey(process.env.NEXT_PUBLIC_API_KEY || "");
 
   // Get elevation data for a location using the official elevation service
-  const getElevation = async (longitude: number, latitude: number, locationName: string = "") => {
+  // Only adds to elevation data if fromPolyline is true (for charts)
+  const getElevation = async (longitude: number, latitude: number, locationName: string = "", fromPolyline: boolean = false) => {
     setIsLoadingElevation(true);
     try {
       const elevationServiceUrl =
@@ -108,18 +110,24 @@ export default function ArcGISMapWrapper() {
       if (response.result?.points && response.result.points.length > 0) {
         const point = response.result.points[0];
         const elevation = point.z;
-        const newDataPoint: ElevationDataPoint = {
-          longitude,
-          latitude,
-          elevation: Math.round(elevation * 100) / 100, // Round to 2 decimal places
-          location: locationName || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
-        };
+        
+        // Only add to elevation data if it's from a polyline (for charts)
+        if (fromPolyline) {
+          const newDataPoint: ElevationDataPoint = {
+            longitude,
+            latitude,
+            elevation: Math.round(elevation * 100) / 100, // Round to 2 decimal places
+            location: locationName || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+          };
 
-        // Add to elevation data array (keep last 10 points for chart)
-        setElevationData((prev) => {
-          const updated = [...prev, newDataPoint];
-          return updated.slice(-10); // Keep only last 10 points
-        });
+          setElevationData((prev) => {
+            const updated = [...prev, newDataPoint];
+            return updated.slice(-10); // Keep only last 10 points
+          });
+        }
+        
+        // Log elevation for non-polyline cases (map clicks, search)
+        console.log(`Elevation at ${locationName || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`}: ${Math.round(elevation * 100) / 100}m`);
       }
     } catch (error) {
       console.error("Elevation error:", error);
@@ -273,8 +281,10 @@ export default function ArcGISMapWrapper() {
       const geometry = graphic.geometry;
       const spatialRef = geometry.spatialReference;
       
-      // Check if it's a polyline
+      // Only process polylines for elevation charts
       if (geometry.type === "polyline" && geometry.paths) {
+        setHasPolyline(true);
+        
         // Sample points along the polyline
         const sampledPoints = samplePointsAlongPolyline(geometry.paths, 20);
         
@@ -289,18 +299,17 @@ export default function ArcGISMapWrapper() {
           // Get elevation for all converted points
           await getElevationForPoints(wgs84Points);
         }
-      } else if (geometry.type === "point") {
-        // Handle single point - convert to WGS84
-        const wgs84Point = await convertToWGS84(
-          geometry.longitude || geometry.x,
-          geometry.latitude || geometry.y,
-          spatialRef
-        );
-        await getElevation(wgs84Point.longitude, wgs84Point.latitude);
       }
+      // Don't process points or other geometries for elevation charts
     } catch (error) {
       console.error("Sketch create error:", error);
     }
+  };
+
+  // Handle sketch delete (when polyline is deleted)
+  const handleSketchDelete = () => {
+    setHasPolyline(false);
+    setElevationData([]);
   };
 
   const performGeocode = async (magicKey: string) => {
@@ -553,14 +562,16 @@ export default function ArcGISMapWrapper() {
             slot="bottom-right" 
             creation-mode="polyline"
             onArcgisCreate={handleSketchCreate}
+            onArcgisDelete={handleSketchDelete}
           />
       </ArcgisMap>
       </div>
 
-      {/* Elevation Charts Section */}
-      <div className="bg-white border-t border-gray-300 p-4" style={{ height: "300px" }}>
-        <div className="h-full">
-          {elevationData.length > 0 ? (
+      {/* Elevation Charts Section - Only show when polyline is drawn */}
+      {hasPolyline && (
+        <div className="bg-white border-t border-gray-300 p-4" style={{ height: "300px" }}>
+          <div className="h-full">
+            {elevationData.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-5/6">
               {/* Line Chart */}
               <div className="h-full">
@@ -624,19 +635,13 @@ export default function ArcGISMapWrapper() {
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-center h-5/6 text-gray-500">
-              <div className="text-center">
-                <p className="mb-2">
-                  Click on the map or search for a location to see elevation data.
-                </p>
-                <p className="text-sm">
-                  Or use the Sketch tool (bottom-right) to draw a polyline and get an elevation profile along the path.
-                </p>
+              <div className="flex items-center justify-center h-5/6 text-gray-500">
+                <p>Loading elevation data...</p>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
