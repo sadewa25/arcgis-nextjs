@@ -1,7 +1,11 @@
 "use client";
 
 import config from "@arcgis/core/config";
-import { ArcgisMap, ArcgisSketch } from "@arcgis/map-components-react";
+import {
+  ArcgisMap,
+  ArcgisSketch,
+  ArcgisSearch,
+} from "@arcgis/map-components-react";
 import { defineCustomElements as defineMapElements } from "@arcgis/map-components/dist/loader";
 import { useEffect, useState } from "react";
 
@@ -33,6 +37,10 @@ export default function ArcGISMapWrapper() {
     initializeElements();
   }, []);
 
+  const handleSearchComplete = (event: any) => {
+    console.log("Hasil pencarian:", event.detail);
+  };
+
   if (!isReady) {
     return (
       <div className="w-full h-full bg-gray-800 flex items-center justify-center">
@@ -45,11 +53,12 @@ export default function ArcGISMapWrapper() {
     <div className="w-full h-full">
       <ArcgisMap
         basemap="topo-vector"
-        center={[139.5716, 35.696] as any}
-        zoom={18}
-        style={{ width: '100%', height: '100%' }}
+        center={[106.8451, -6.2088] as any}
+        zoom={10}
+        style={{ width: "100%", height: "100%" }}
       >
-        <ArcgisSketch slot="top-right" creation-mode="update" />
+        <ArcgisSearch slot="top-right" onArcgisSearchComplete={handleSearchComplete} />
+        {/* <ArcgisSketch slot="top-right" creation-mode="update" /> */}
       </ArcgisMap>
     </div>
   );
